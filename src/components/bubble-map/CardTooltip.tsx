@@ -5,6 +5,7 @@ import Image from "next/image";
 import { X, ShoppingCart, Search, TrendingUp, TrendingDown } from "lucide-react";
 import type { BubbleDatum } from "@/types/card";
 import { buildEbaySearchUrl, withAffiliateTag } from "@/lib/affiliate";
+import { useDeviceTilt } from "@/lib/use-device-tilt";
 
 interface CardTooltipProps {
   bubble: BubbleDatum;
@@ -27,6 +28,7 @@ function useIsMobile() {
 
 export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
   const isMobile = useIsMobile();
+  const tilt = useDeviceTilt();
   const positive = bubble.change >= 0;
   const ChangeIcon = positive ? TrendingUp : TrendingDown;
   const affiliateUrl = withAffiliateTag(bubble.tcgplayerUrl);
@@ -36,14 +38,19 @@ export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
     <>
       <div className="flex items-start gap-3">
         {bubble.imageUrl ? (
-          <Image
-            src={bubble.imageUrl}
-            alt={bubble.name}
-            width={56}
-            height={78}
-            className="rounded-md border border-zinc-700 shadow-lg"
-            unoptimized
-          />
+          <div className="relative shrink-0 overflow-hidden rounded-md border border-zinc-700 shadow-lg">
+            <Image src={bubble.imageUrl} alt={bubble.name} width={56} height={78} unoptimized />
+            {tilt ? (
+              <div
+                className="pointer-events-none absolute inset-0 mix-blend-color-dodge"
+                style={{
+                  opacity: 0.55,
+                  background: `linear-gradient(${115 + tilt.gamma * 3}deg, transparent 30%, rgba(255,80,180,0.6) 40%, rgba(80,200,255,0.6) 48%, rgba(255,240,80,0.6) 56%, transparent 66%)`,
+                  backgroundPosition: `${50 + tilt.gamma * 4}% ${50 + tilt.beta * 4}%`,
+                }}
+              />
+            ) : null}
+          </div>
         ) : null}
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-bold text-zinc-50">{bubble.name}</p>

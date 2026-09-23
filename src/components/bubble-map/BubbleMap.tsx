@@ -13,9 +13,11 @@ import {
 import { scaleLinear, scaleSqrt } from "d3-scale";
 import { max as d3max } from "d3-array";
 import { quadtree, type Quadtree } from "d3-quadtree";
+import { Sparkles } from "lucide-react";
 import type { BubbleDatum } from "@/types/card";
 import { CardTooltip } from "./CardTooltip";
 import { withAffiliateTag } from "@/lib/affiliate";
+import { useDeviceTiltRef, useDeviceTiltStatus } from "@/lib/use-device-tilt";
 
 interface BubbleMapProps {
   bubbles: BubbleDatum[];
@@ -40,6 +42,7 @@ interface ImageEntry {
 
 export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const perspectiveRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const nodesRef = useRef<SimNode[]>([]);
   const quadtreeRef = useRef<Quadtree<SimNode> | null>(null);
@@ -50,6 +53,37 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
   const drawRef = useRef<() => void>(() => {});
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [hovered, setHovered] = useState<{ node: SimNode; x: number; y: number } | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const tiltRef = useDeviceTiltRef();
+  const { supported: tiltSupported, needsPermission, enabled: tiltEnabled, requestPermission } =
+    useDeviceTiltStatus();
+
+  useEffect(() => {
+    setIsTouchDevice(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+
+  // Applies the live gyroscope reading to the canvas as a 3D tilt/parallax — imperative
+  // (no React state) so it stays smooth at 60fps without re-rendering the component.
+  useEffect(() => {
+    if (!isTouchDevice) return;
+    let rafId = 0;
+    const loop = () => {
+      const el = perspectiveRef.current;
+      if (el) {
+        const { beta, gamma } = tiltRef.current;
+        el.style.transform = `rotateX(${-beta * 0.6}deg) rotateY(${gamma * 0.6}deg)`;
+      }
+      const bg = containerRef.current;
+      if (bg) {
+        const { beta, gamma } = tiltRef.current;
+        const gridOffset = `${gamma * -1.2}px ${beta * -1.2}px`;
+        bg.style.backgroundPosition = `0 0, ${gridOffset}, ${gridOffset}`;
+      }
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [isTouchDevice, tiltRef]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -406,14 +440,32 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
         backgroundSize: "auto, 36px 36px, 36px 36px",
       }}
     >
-      <canvas
-        ref={canvasRef}
-        onPointerMove={handlePointerMove}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
-        className="cursor-pointer touch-manipulation"
-      />
+      <div className="h-full w-full overflow-hidden" style={isTouchDevice ? { perspective: "1000px" } : undefined}>
+        <div ref={perspectiveRef} className="h-full w-full" style={{ willChange: "transform" }}>
+          <canvas
+            ref={canvasRef}
+            onPointerMove={handlePointerMove}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+            className="cursor-pointer touch-manipulation"
+          />
+        </div>
+      </div>
+      {tiltSupported && needsPermission ? (
+        <button
+          type="button"
+          onClick={requestPermission}
+          className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full border-2 border-zinc-900 bg-yellow-400 px-3 py-2 text-xs font-bold text-zinc-900 shadow-[3px_3px_0_#000] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+        >
+          <Sparkles className="h-4 w-4" strokeWidth={2.5} /> Attiva 3D
+        </button>
+      ) : null}
+      {tiltEnabled ? (
+        <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[10px] font-semibold text-zinc-300">
+          <Sparkles className="h-3 w-3 text-yellow-400" strokeWidth={2.5} /> 3D attivo
+        </div>
+      ) : null}
       {hovered ? (
         <CardTooltip bubble={hovered.node} x={hovered.x} y={hovered.y} onClose={closeTooltip} />
       ) : null}
