@@ -219,12 +219,13 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
       const positive = change >= 0;
       const badgeColor = positive ? "#16a34a" : "#dc2626";
       const badgeY = y + radius - Math.min(radius * 0.18, 6);
-      const label = `${positive ? "▲" : "▼"}${Math.abs(change).toFixed(radius > 30 ? 1 : 0)}%`;
+      const label = `${Math.abs(change).toFixed(radius > 30 ? 1 : 0)}%`;
       const fontSize = Math.max(8, Math.min(11, radius / 3.2));
       context.font = `700 ${fontSize}px system-ui, sans-serif`;
       const textWidth = context.measureText(label).width;
+      const arrowW = fontSize * 0.6;
       const paddingX = fontSize * 0.5;
-      const badgeW = textWidth + paddingX * 2;
+      const badgeW = textWidth + arrowW + paddingX * 2.4;
       const badgeH = fontSize + 4;
 
       context.save();
@@ -237,11 +238,33 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
       context.strokeStyle = "rgba(255,255,255,0.6)";
       context.lineWidth = 1;
       context.stroke();
+
+      const arrowCx = x - badgeW / 2 + paddingX * 1.2 + arrowW / 2;
+      drawArrow(context, arrowCx, badgeY, arrowW, positive);
+
       context.fillStyle = "#fff";
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.fillText(label, x, badgeY + 0.5);
+      context.fillText(label, arrowCx + arrowW / 2 + paddingX * 0.6 + textWidth / 2, badgeY + 0.5);
       context.restore();
+    }
+
+    /** Disegna una freccia piena (su/giù) come vera icona vettoriale, non un glifo di testo. */
+    function drawArrow(context: CanvasRenderingContext2D, cx: number, cy: number, size: number, up: boolean) {
+      const h = size * 0.9;
+      context.beginPath();
+      if (up) {
+        context.moveTo(cx, cy - h / 2);
+        context.lineTo(cx + size / 2, cy + h / 2);
+        context.lineTo(cx - size / 2, cy + h / 2);
+      } else {
+        context.moveTo(cx, cy + h / 2);
+        context.lineTo(cx + size / 2, cy - h / 2);
+        context.lineTo(cx - size / 2, cy - h / 2);
+      }
+      context.closePath();
+      context.fillStyle = "#fff";
+      context.fill();
     }
 
     function draw() {

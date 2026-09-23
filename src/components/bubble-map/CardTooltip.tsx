@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { X, ShoppingCart, Search, TrendingUp, TrendingDown } from "lucide-react";
 import type { BubbleDatum } from "@/types/card";
 import { buildEbaySearchUrl, withAffiliateTag } from "@/lib/affiliate";
 
@@ -27,6 +28,7 @@ function useIsMobile() {
 export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
   const isMobile = useIsMobile();
   const positive = bubble.change >= 0;
+  const ChangeIcon = positive ? TrendingUp : TrendingDown;
   const affiliateUrl = withAffiliateTag(bubble.tcgplayerUrl);
   const ebayUrl = buildEbaySearchUrl(bubble.name, bubble.setName);
 
@@ -54,7 +56,7 @@ export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
               positive ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
             }`}
           >
-            {positive ? "▲" : "▼"} {positive ? "+" : ""}
+            <ChangeIcon className="h-3.5 w-3.5" strokeWidth={3} /> {positive ? "+" : ""}
             {bubble.change.toFixed(2)}%
           </span>
         </div>
@@ -64,7 +66,7 @@ export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
           aria-label="Chiudi"
           className="pointer-events-auto -mt-1 -mr-1 rounded-full p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
         >
-          ✕
+          <X className="h-4 w-4" strokeWidth={2.5} />
         </button>
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">
@@ -77,18 +79,18 @@ export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
             href={affiliateUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
-            className="pointer-events-auto flex-1 rounded-md bg-emerald-500 px-3 py-2 text-center text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-400"
+            className="pointer-events-auto flex flex-1 items-center justify-center gap-1.5 rounded-md border-2 border-zinc-900 bg-emerald-400 px-3 py-2 text-center text-sm font-bold text-zinc-950 shadow-[2px_2px_0_#000] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
           >
-            🛒 Compra ora
+            <ShoppingCart className="h-4 w-4" strokeWidth={2.5} /> Compra ora
           </a>
         ) : null}
         <a
           href={ebayUrl}
           target="_blank"
           rel="noopener noreferrer sponsored"
-          className="pointer-events-auto flex-1 rounded-md border border-zinc-700 px-3 py-2 text-center text-sm font-semibold text-zinc-200 transition-colors hover:bg-zinc-800"
+          className="pointer-events-auto flex flex-1 items-center justify-center gap-1.5 rounded-md border-2 border-zinc-700 px-3 py-2 text-center text-sm font-bold text-zinc-200 transition-colors hover:bg-zinc-800"
         >
-          🔎 Cerca su eBay
+          <Search className="h-4 w-4" strokeWidth={2.5} /> Cerca su eBay
         </a>
       </div>
     </>
@@ -96,7 +98,7 @@ export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
 
   if (isMobile) {
     return (
-      <div className="pointer-events-auto fixed inset-x-0 bottom-0 z-20 animate-[slide-up_0.2s_ease-out] rounded-t-2xl border-t border-zinc-700 bg-zinc-900/98 p-4 pb-6 shadow-2xl backdrop-blur">
+      <div className="pointer-events-auto fixed inset-x-0 bottom-0 z-20 animate-[slide-up_0.2s_ease-out] rounded-t-2xl border-t-2 border-zinc-700 bg-zinc-900/98 p-4 pb-6 shadow-2xl backdrop-blur">
         {content}
       </div>
     );
@@ -104,7 +106,7 @@ export function CardTooltip({ bubble, x, y, onClose }: CardTooltipProps) {
 
   return (
     <div
-      className="pointer-events-none absolute z-10 w-72 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-lg border border-zinc-700 bg-zinc-900/95 p-3 shadow-xl backdrop-blur"
+      className="pointer-events-none absolute z-10 w-72 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-lg border-2 border-zinc-700 bg-zinc-900/95 p-3 shadow-[4px_4px_0_#000] backdrop-blur"
       style={{ left: x, top: y }}
     >
       {content}

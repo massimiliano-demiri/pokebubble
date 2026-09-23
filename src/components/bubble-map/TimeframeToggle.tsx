@@ -19,7 +19,7 @@ interface TimeframeToggleProps {
 export function TimeframeToggle({ value, onChange }: TimeframeToggleProps) {
   return (
     <div
-      className="inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900/60 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border-2 border-zinc-800 bg-zinc-900/60 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="group"
       aria-label="Timeframe"
     >
@@ -30,8 +30,10 @@ export function TimeframeToggle({ value, onChange }: TimeframeToggleProps) {
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            value === option.value ? "bg-zinc-100 text-zinc-900" : "text-zinc-400 hover:text-zinc-100"
+            "shrink-0 rounded-md px-3 py-1.5 text-sm font-bold transition-all",
+            value === option.value
+              ? "bg-yellow-400 text-zinc-900 shadow-[2px_2px_0_#000]"
+              : "text-zinc-400 hover:text-zinc-100"
           )}
         >
           {option.label}

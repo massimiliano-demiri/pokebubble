@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Flame, TrendingUp, TrendingDown } from "lucide-react";
 import type { BubbleDatum } from "@/types/card";
 
 interface TopMoversTickerProps {
@@ -21,7 +22,9 @@ export function TopMoversTicker({ bubbles, onSelect }: TopMoversTickerProps) {
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <span className="mr-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-500">🔥 Top mover</span>
+      <span className="mr-1 flex shrink-0 items-center gap-1 text-xs font-bold uppercase tracking-wide text-orange-400">
+        <Flame className="h-3.5 w-3.5" strokeWidth={2.5} /> Top mover
+      </span>
       {movers.gainers.map((bubble) => (
         <MoverChip key={bubble.id} bubble={bubble} onSelect={onSelect} />
       ))}
@@ -35,17 +38,18 @@ export function TopMoversTicker({ bubbles, onSelect }: TopMoversTickerProps) {
 
 function MoverChip({ bubble, onSelect }: { bubble: BubbleDatum; onSelect: (id: string) => void }) {
   const positive = bubble.change >= 0;
+  const Icon = positive ? TrendingUp : TrendingDown;
   return (
     <button
       type="button"
       onClick={() => onSelect(bubble.id)}
-      className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold transition-transform hover:scale-105 ${
+      className={`flex shrink-0 items-center gap-1 rounded-full border-2 px-2.5 py-1 text-xs font-bold transition-transform hover:-translate-y-0.5 ${
         positive
-          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-          : "border-red-500/40 bg-red-500/10 text-red-300"
+          ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+          : "border-red-500 bg-red-500/10 text-red-300"
       }`}
     >
-      {positive ? "▲" : "▼"} {bubble.name} {positive ? "+" : ""}
+      <Icon className="h-3.5 w-3.5" strokeWidth={3} /> {bubble.name} {positive ? "+" : ""}
       {bubble.change.toFixed(1)}%
     </button>
   );
