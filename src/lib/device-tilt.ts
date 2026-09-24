@@ -3,7 +3,7 @@ export interface Tilt {
   gamma: number;
 }
 
-const MAX_ANGLE = 18;
+export const MAX_TILT_ANGLE = 18;
 const SMOOTHING = 0.15;
 
 type IOSDeviceOrientationEvent = typeof DeviceOrientationEvent & {
@@ -88,8 +88,8 @@ class DeviceTiltStore {
     const rawBeta = event.beta - this.baseline.beta;
     const rawGamma = event.gamma - this.baseline.gamma;
     this.tilt = {
-      beta: clamp(this.tilt.beta + (rawBeta - this.tilt.beta) * SMOOTHING, MAX_ANGLE),
-      gamma: clamp(this.tilt.gamma + (rawGamma - this.tilt.gamma) * SMOOTHING, MAX_ANGLE),
+      beta: clamp(this.tilt.beta + (rawBeta - this.tilt.beta) * SMOOTHING, MAX_TILT_ANGLE),
+      gamma: clamp(this.tilt.gamma + (rawGamma - this.tilt.gamma) * SMOOTHING, MAX_TILT_ANGLE),
     };
     if (!this.enabled) {
       this.enabled = true;

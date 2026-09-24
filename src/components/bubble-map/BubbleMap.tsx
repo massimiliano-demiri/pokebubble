@@ -18,6 +18,7 @@ import type { BubbleDatum } from "@/types/card";
 import { CardTooltip } from "./CardTooltip";
 import { withAffiliateTag } from "@/lib/affiliate";
 import { useDeviceTiltRef, useDeviceTiltStatus } from "@/lib/use-device-tilt";
+import { MAX_TILT_ANGLE } from "@/lib/device-tilt";
 
 interface BubbleMapProps {
   bubbles: BubbleDatum[];
@@ -42,14 +43,12 @@ interface ImageEntry {
 
 export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const perspectiveRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const nodesRef = useRef<SimNode[]>([]);
   const quadtreeRef = useRef<Quadtree<SimNode> | null>(null);
   const imagesRef = useRef<Map<string, ImageEntry>>(new Map());
   const hoveredIdRef = useRef<string | null>(null);
   const pointerDownIdRef = useRef<string | null>(null);
-  const lastTappedIdRef = useRef<string | null>(null);
   const drawRef = useRef<() => void>(() => {});
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [hovered, setHovered] = useState<{ node: SimNode; x: number; y: number } | null>(null);
@@ -62,17 +61,12 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
     setIsTouchDevice(window.matchMedia("(pointer: coarse)").matches);
   }, []);
 
-  // Applies the live gyroscope reading to the canvas as a 3D tilt/parallax — imperative
-  // (no React state) so it stays smooth at 60fps without re-rendering the component.
+  // Background grid drifts with the gyroscope for a subtle depth parallax behind the bubbles;
+  // the bubbles themselves react to tilt individually (see drawSphereShine), not as a flat plane.
   useEffect(() => {
     if (!isTouchDevice) return;
     let rafId = 0;
     const loop = () => {
-      const el = perspectiveRef.current;
-      if (el) {
-        const { beta, gamma } = tiltRef.current;
-        el.style.transform = `rotateX(${-beta * 0.6}deg) rotateY(${gamma * 0.6}deg)`;
-      }
       const bg = containerRef.current;
       if (bg) {
         const { beta, gamma } = tiltRef.current;
@@ -212,6 +206,13 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
         ctx!.fill();
       }
 
+      // Glassy specular highlight sliding across the sphere as the phone tilts — this,
+      // not a whole-canvas rotation, is what sells the "3D bubble" feel on mobile.
+      const { beta, gamma } = tiltRef.current;
+      const lightX = Math.max(-1, Math.min(1, gamma / MAX_TILT_ANGLE));
+      const lightY = Math.max(-1, Math.min(1, beta / MAX_TILT_ANGLE));
+      drawSphereShine(ctx!, x, y, radius, lightX, lightY);
+
       ctx!.beginPath();
       ctx!.arc(x, y, radius, 0, Math.PI * 2);
       const glowPulse = isHot ? 0.5 + pulse * 0.5 : 1;
@@ -329,10 +330,11 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
 
     draw();
 
-    // Keep animating (pulsing glow on hot movers) even after the simulation settles.
+    // Keep animating even after the simulation settles: hot movers need their pulsing glow,
+    // and touch devices need the sphere shine to keep tracking the live gyroscope tilt.
     const hasHotBubbles = nodes.some((n) => Math.abs(n.change) >= HOT_CHANGE_THRESHOLD);
     let rafId = 0;
-    if (hasHotBubbles) {
+    if (hasHotBubbles || isTouchDevice) {
       const loop = () => {
         draw();
         rafId = requestAnimationFrame(loop);
@@ -344,7 +346,7 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
       simulation.stop();
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [bubbles, size, colorScale]);
+  }, [bubbles, size, colorScale, isTouchDevice, tiltRef]);
 
   // Follow a bubble selected from outside (e.g. top-movers ticker) and open its tooltip.
   useEffect(() => {
@@ -402,21 +404,12 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "touch") return; // tap already opened the sheet on pointerdown; its own buttons handle buying/searching
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const node = findNodeAt(x, y);
     const isSameAsDown = node != null && node.id === pointerDownIdRef.current;
-
-    if (event.pointerType === "touch") {
-      // A tap that lands back on the already-selected card opens the affiliate link (2-tap confirm).
-      if (isSameAsDown && lastTappedIdRef.current === node.id) {
-        const url = withAffiliateTag(node.tcgplayerUrl);
-        if (url) window.open(url, "_blank", "noopener,noreferrer");
-      }
-      lastTappedIdRef.current = node?.id ?? null;
-      return;
-    }
 
     if (isSameAsDown && node.tcgplayerUrl) {
       const url = withAffiliateTag(node.tcgplayerUrl);
@@ -440,17 +433,15 @@ export function BubbleMap({ bubbles, selectedId, onSelect }: BubbleMapProps) {
         backgroundSize: "auto, 36px 36px, 36px 36px",
       }}
     >
-      <div className="h-full w-full overflow-hidden" style={isTouchDevice ? { perspective: "1000px" } : undefined}>
-        <div ref={perspectiveRef} className="h-full w-full" style={{ willChange: "transform" }}>
-          <canvas
-            ref={canvasRef}
-            onPointerMove={handlePointerMove}
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerLeave}
-            className="cursor-pointer touch-manipulation"
-          />
-        </div>
+      <div className="h-full w-full overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
+          className="cursor-pointer touch-manipulation"
+        />
       </div>
       {tiltSupported && needsPermission ? (
         <button
@@ -495,6 +486,48 @@ function roundedRectPath(
   context.arcTo(x, y, x + width, y, r);
   context.closePath();
 }
+
+/**
+ * Draws a moving glossy highlight + tight glint clipped to the bubble's circle, like light
+ * reflecting off a glass marble. `lightX`/`lightY` are in [-1, 1] and come from the device's
+ * gyroscope tilt (or stay at 0 on desktop), so every bubble reacts individually instead of
+ * the whole canvas rotating as one flat plane.
+ */
+function drawSphereShine(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  lightX: number,
+  lightY: number
+) {
+  const hx = x - radius * 0.15 + lightX * radius * 0.55;
+  const hy = y - radius * 0.25 + lightY * radius * 0.55;
+
+  context.save();
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.clip();
+  context.globalCompositeOperation = "screen";
+
+  const glow = context.createRadialGradient(hx, hy, 0, hx, hy, radius * 0.9);
+  glow.addColorStop(0, "rgba(255,255,255,0.45)");
+  glow.addColorStop(0.35, "rgba(255,255,255,0.1)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = glow;
+  context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+
+  const glintRadius = radius * 0.22;
+  const glint = context.createRadialGradient(hx, hy, 0, hx, hy, glintRadius);
+  glint.addColorStop(0, "rgba(255,255,255,0.8)");
+  glint.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = glint;
+  context.beginPath();
+  context.arc(hx, hy, glintRadius, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
 
 /** Mixes an rgb()/hex color string toward white by `amount` (0-1); used for gradients & hover glow. */
 function lighten(color: string, amount: number): string {
